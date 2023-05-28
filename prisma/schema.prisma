@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+model Game {
+
+  id    String     @id @default(uuid())
+
+  code  String  @unique
+
+  day   Int     @default(1)
+
+  users User[]
+}
+
+model User {
+
+  id    String     @id @default(uuid())
+
+  name  String
+
+  color String
+
+  table String
+
+  workItems WorkItem[]
+
+  moves Int @default(0)
+
+  game Game? @relation(fields: [gameKey], references: [code])
+
+  gameKey String?
+
+}
+
+model WorkItem {
+
+  id    String     @id @default(uuid())
+
+  table String
+
+  blocker Int   @default(0)
+
+  stage Int     @default(0)
+
+  owner User? @relation(fields: [ownerId], references: [id])
+
+  ownerId String?
+
+  start Int     @default(1)
+
+  end   Int?       
+
+  lead_time Int?
+
+  game_id String
+}
