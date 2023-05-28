@@ -2,7 +2,7 @@ import express from "express";
 import { prisma } from "../../prisma/client";
 const gameRouter = express.Router();
 const tables = ["Strategic Value", "Design", "Development", "Release"];
-
+import { IO } from "../../types/socket";
 function getRandomGameCode(): string {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -71,8 +71,19 @@ gameRouter.post("/joinSimulation", async (req, res) => {
   function generateRandomNumber(): number {
     return Math.floor(Math.random() * 4);
   }
+
+  const howManyPlayers = await prisma.user.aggregate({
+    _count: { id: true },
+    where: { gameKey: key },
+  });
+  const io: IO = req.app.get("socketio");
+
   if (findUser.length !== 0) {
-    return res.status(200).json({ ...findUser[0], activeDay });
+    return res.status(200).json({
+      ...findUser[0],
+      activeDay,
+      howManyPlayers: howManyPlayers._count.id,
+    });
   } else {
     const table = ["Strategic Value", "Development", "Release", "Design"];
     const newUser = await prisma.user.create({
@@ -93,7 +104,15 @@ gameRouter.post("/joinSimulation", async (req, res) => {
       data: { stage: 2, ownerId: newUser.id },
     });
 
-    return res.status(200).json({ ...newUser, activeDay });
+    io.emit("userJoined", { howManyPlayers: howManyPlayers._count.id });
+
+    return res
+      .status(200)
+      .json({
+        ...newUser,
+        activeDay,
+        howManyPlayers: howManyPlayers._count.id,
+      });
   }
 });
 

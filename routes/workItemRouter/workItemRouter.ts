@@ -63,15 +63,16 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
   const workItemId = body.workItemId;
   const userId = body.userId;
 
-  const findWorkItem = await prisma.workItem.findUnique({
-    where: { id: workItemId },
-    include: { owner: { include: { game: true } } },
-  });
-
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: { game: true },
-  });
+  let [findWorkItem, user] = await Promise.all([
+    prisma.workItem.findUnique({
+      where: { id: workItemId },
+      include: { owner: { include: { game: true } } },
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      include: { game: true },
+    }),
+  ]);
 
   const activeDat = Number(user?.game?.day);
   const userMoves = user?.moves as number;
