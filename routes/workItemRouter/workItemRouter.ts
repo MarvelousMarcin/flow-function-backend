@@ -1,6 +1,7 @@
 import express from "express";
 import { prisma } from "../../prisma/client";
 const workItemRouter = express.Router();
+import { IO } from "../../types/socket";
 
 workItemRouter.post("/blockWorkItem", async (req, res) => {
   const body = await req.body;
@@ -15,6 +16,8 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
   const activeDat = Number(findWorkItem?.owner?.game?.day);
   const userMoves = findWorkItem?.owner?.moves as number;
   const gameKey = findWorkItem?.game_id;
+
+  const io: IO = req.app.get("socketio");
 
   if (Number(activeDat) === Number(userMoves)) {
     return res.status(200).json({ msg: "You have already made your move" });
@@ -49,6 +52,8 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         where: { code: gameKey },
         data: { day: activeDat + 1 },
       });
+      io.emit("newDay", { newDay: activeDat + 1 });
+
       return res.status(200).json({ nextDay: true });
     } else {
       return res.status(200).json({ nextDay: false });
@@ -62,6 +67,7 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
   const body = await req.body;
   const workItemId = body.workItemId;
   const userId = body.userId;
+  const io: IO = req.app.get("socketio");
 
   let [findWorkItem, user] = await Promise.all([
     prisma.workItem.findUnique({
@@ -133,6 +139,7 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
       where: { code: gameKey },
       data: { day: activeDat + 1 },
     });
+    io.emit("newDay", { newDay: activeDat + 1 });
     return res.status(200).json({ nextDay: true });
   } else {
     return res.status(200).json({ nextDay: false });
@@ -168,8 +175,6 @@ workItemRouter.post("/getWorkItems", async (req, res) => {
 
 workItemRouter.post("/drawCard", async (req, res) => {
   const body = await req.body;
-
-  const user_id = body.userId;
 
   const isGreen = Number(Math.random().toFixed()) === 1 ? true : false;
 

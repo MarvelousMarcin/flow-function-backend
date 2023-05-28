@@ -72,13 +72,14 @@ gameRouter.post("/joinSimulation", async (req, res) => {
     return Math.floor(Math.random() * 4);
   }
 
-  const howManyPlayers = await prisma.user.aggregate({
-    _count: { id: true },
-    where: { gameKey: key },
-  });
   const io: IO = req.app.get("socketio");
 
   if (findUser.length !== 0) {
+    const howManyPlayers = await prisma.user.aggregate({
+      _count: { id: true },
+      where: { gameKey: key },
+    });
+
     return res.status(200).json({
       ...findUser[0],
       activeDay,
@@ -104,15 +105,18 @@ gameRouter.post("/joinSimulation", async (req, res) => {
       data: { stage: 2, ownerId: newUser.id },
     });
 
+    const howManyPlayers = await prisma.user.aggregate({
+      _count: { id: true },
+      where: { gameKey: key },
+    });
+
     io.emit("userJoined", { howManyPlayers: howManyPlayers._count.id });
 
-    return res
-      .status(200)
-      .json({
-        ...newUser,
-        activeDay,
-        howManyPlayers: howManyPlayers._count.id,
-      });
+    return res.status(200).json({
+      ...newUser,
+      activeDay,
+      howManyPlayers: howManyPlayers._count.id,
+    });
   }
 });
 
