@@ -1,7 +1,6 @@
 import express from "express";
 import { prisma } from "../../prisma/client";
 const gameRouter = express.Router();
-
 const tables = ["Strategic Value", "Design", "Development", "Release"];
 
 function getRandomGameCode(): string {
@@ -14,7 +13,18 @@ function getRandomGameCode(): string {
   return code;
 }
 
-gameRouter.post("/initSimulation", async (req, res) => {
+function generateRandomHexColor(): string {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+
+  return color;
+}
+
+gameRouter.get("/initSimulation", async (req, res) => {
   let newGameCode = getRandomGameCode();
 
   const findGame = await prisma.game.findUnique({
@@ -43,7 +53,48 @@ gameRouter.post("/initSimulation", async (req, res) => {
 
   await prisma.workItem.createMany({ data: workItems });
 
-  return res.status(200).json({ data: workItems });
+  return res.status(200).json({ gameCode: newGameCode });
+});
+
+gameRouter.post("/joinSimulation", async (req, res) => {
+  const body = await req.body;
+
+  const name = body.name;
+  const key = body.gameKey;
+
+  const findUser = await prisma.user.findMany({
+    where: { gameKey: key, name },
+  });
+
+  const activeDay = await prisma.game.findUnique({ where: { code: key } });
+
+  function generateRandomNumber(): number {
+    return Math.floor(Math.random() * 4);
+  }
+  if (findUser.length !== 0) {
+    return res.status(200).json({ ...findUser[0], activeDay });
+  } else {
+    const table = ["Strategic Value", "Development", "Release", "Design"];
+    const newUser = await prisma.user.create({
+      data: {
+        name: name,
+        gameKey: key,
+        color: generateRandomHexColor(),
+        table: table[generateRandomNumber()],
+      },
+    });
+
+    // move one work item for new user
+    const workItemToMove = await prisma.workItem.findFirst({
+      where: { stage: 1, table: newUser.table, game_id: key },
+    });
+    await prisma.workItem.update({
+      where: { id: workItemToMove?.id },
+      data: { stage: 2, ownerId: newUser.id },
+    });
+
+    return res.status(200).json({ ...newUser, activeDay });
+  }
 });
 
 export default gameRouter;
