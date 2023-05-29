@@ -19,6 +19,8 @@ model Game {
 
   day   Int     @default(1)
 
+  round   Int     @default(1)
+
   users User[]
 }
 

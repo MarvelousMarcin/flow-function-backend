@@ -40,7 +40,11 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
     if (moveNewItem) {
       await prisma.workItem.update({
         where: { id: moveNewItem?.id },
-        data: { stage: moveNewItem?.stage + 1, ownerId: userId },
+        data: {
+          stage: moveNewItem?.stage + 1,
+          ownerId: userId,
+          start: moveNewItem.start !== 0 ? moveNewItem.start : activeDat,
+        },
       });
     }
     const ifAllUsersMoved = await prisma.user.findMany({
@@ -52,6 +56,44 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         where: { code: gameKey },
         data: { day: activeDat + 1 },
       });
+
+      if (activeDat % 10 === 0) {
+        const currentRound = findWorkItem.owner?.game?.round;
+        if (currentRound) {
+          await prisma.game.update({
+            where: { code: gameKey },
+            data: { round: currentRound + 1 },
+          });
+          io.emit("newStage", { newStage: currentRound + 1 });
+        }
+      }
+
+      if (activeDat % 3 === 0) {
+        await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Strategic Value" },
+          data: {
+            stage: 1,
+            table: "Design",
+          },
+        });
+
+        await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Design" },
+          data: {
+            stage: 1,
+            table: "Development",
+          },
+        });
+
+        await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Development" },
+          data: {
+            stage: 1,
+            table: "Release",
+          },
+        });
+      }
+
       io.emit("newDay", { newDay: activeDat + 1 });
 
       return res.status(200).json({ nextDay: true });
@@ -107,7 +149,7 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
           data: {
             stage: findWorkItem.stage + 1,
             ownerId: userId,
-            start: activeDat,
+            start: findWorkItem.start !== 0 ? findWorkItem.start : activeDat,
           },
         });
       } else {
@@ -139,7 +181,45 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
       where: { code: gameKey },
       data: { day: activeDat + 1 },
     });
+
+    if (activeDat % 10 === 0) {
+      const currentRound = user?.game?.round;
+      if (currentRound) {
+        await prisma.game.update({
+          where: { code: gameKey },
+          data: { round: currentRound + 1 },
+        });
+        io.emit("newStage", { newStage: currentRound + 1 });
+      }
+    }
+
+    if (activeDat % 3 === 0) {
+      await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Strategic Value" },
+        data: {
+          stage: 1,
+          table: "Design",
+        },
+      });
+
+      await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Design" },
+        data: {
+          stage: 1,
+          table: "Development",
+        },
+      });
+
+      await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Development" },
+        data: {
+          stage: 1,
+          table: "Release",
+        },
+      });
+    }
     io.emit("newDay", { newDay: activeDat + 1 });
+
     return res.status(200).json({ nextDay: true });
   } else {
     return res.status(200).json({ nextDay: false });
@@ -174,7 +254,8 @@ workItemRouter.post("/getWorkItems", async (req, res) => {
 });
 
 workItemRouter.post("/drawCard", async (req, res) => {
-  const isGreen = Number(Math.random().toFixed()) === 1 ? true : false;
+  const isGreen =
+    Number(Math.floor(Math.random() * 3) + 1) === 1 ? false : true;
 
   if (isGreen) {
     return res.status(200).json({ card: "green" });
