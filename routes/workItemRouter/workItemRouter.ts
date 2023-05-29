@@ -174,8 +174,6 @@ workItemRouter.post("/getWorkItems", async (req, res) => {
 });
 
 workItemRouter.post("/drawCard", async (req, res) => {
-  const body = await req.body;
-
   const isGreen = Number(Math.random().toFixed()) === 1 ? true : false;
 
   if (isGreen) {
