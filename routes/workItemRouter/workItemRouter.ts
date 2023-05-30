@@ -3,6 +3,7 @@ import { prisma } from "../../prisma/client";
 const workItemRouter = express.Router();
 import { IO } from "../../types/socket";
 import { deleteFromTable } from "./deleteFromTable";
+import { getWorkItems } from "./getWorkItems";
 
 workItemRouter.post("/blockWorkItem", async (req, res) => {
   const body = await req.body;
@@ -32,19 +33,22 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         .json({ msg: "In this round you can only move yours tasks" });
     }
 
-    // User move + 1
-    await prisma.user.update({
-      where: { id: userId },
-      data: { moves: userMoves + 1 },
-    });
+    let [update, upd, moveNewItem] = await Promise.all([
+      prisma.user.update({
+        where: { id: userId },
+        data: { moves: userMoves + 1 },
+      }),
+      prisma.workItem.update({
+        where: { id: workItemId },
+        data: { blocker: findWorkItem.blocker + 1 },
+      }),
+      prisma.workItem.findFirst({
+        where: { stage: 1, table: findWorkItem.table, game_id: gameKey },
+      }),
+    ]);
 
-    await prisma.workItem.update({
-      where: { id: workItemId },
-      data: { blocker: findWorkItem.blocker + 1 },
-    });
-    const moveNewItem = await prisma.workItem.findFirst({
-      where: { stage: 1, table: findWorkItem.table, game_id: gameKey },
-    });
+    // User move + 1
+
     if (moveNewItem) {
       await prisma.workItem.update({
         where: { id: moveNewItem?.id },
@@ -55,6 +59,10 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         },
       });
     }
+
+    const workItems = await getWorkItems(gameKey as string);
+    io.emit("rerenderWorkItems", { workItems });
+
     const ifAllUsersMoved = await prisma.user.findMany({
       where: { NOT: { moves: activeDat }, gameKey },
     });
@@ -110,10 +118,16 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         });
       }
 
+      const workItems = await getWorkItems(gameKey as string);
+
       io.emit("newDay", { newDay: activeDat + 1 });
+      io.emit("rerenderWorkItems", { workItems });
 
       return res.status(200).json({ nextDay: true });
     } else {
+      const workItems = await getWorkItems(gameKey as string);
+      io.emit("rerenderWorkItems", { workItems });
+
       return res.status(200).json({ nextDay: false });
     }
   }
@@ -253,8 +267,14 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
     }
     io.emit("newDay", { newDay: activeDat + 1 });
 
+    const workItems = await getWorkItems(gameKey as string);
+    io.emit("rerenderWorkItems", { workItems });
+
     return res.status(200).json({ nextDay: true });
   } else {
+    const workItems = await getWorkItems(gameKey as string);
+    io.emit("rerenderWorkItems", { workItems });
+
     return res.status(200).json({ nextDay: false });
   }
 });
@@ -262,27 +282,8 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
 workItemRouter.post("/getWorkItems", async (req, res) => {
   const body = await req.body;
   const gameCode = body.gameCode;
-
-  const allWorkItems = await prisma.workItem.findMany({
-    where: { game_id: gameCode },
-    include: { owner: true },
-  });
-
-  const strategic = allWorkItems.filter(
-    (item) => item.table === "Strategic Value"
-  );
-  const developemnt = allWorkItems.filter(
-    (item) => item.table === "Development"
-  );
-  const desing = allWorkItems.filter((item) => item.table === "Design");
-  const release = allWorkItems.filter((item) => item.table === "Release");
-
-  return res.status(200).json({
-    "Strategic Value": strategic,
-    Development: developemnt,
-    Design: desing,
-    Release: release,
-  });
+  const workItems = await getWorkItems(gameCode);
+  return res.status(200).json(workItems);
 });
 
 workItemRouter.post("/drawCard", async (req, res) => {
