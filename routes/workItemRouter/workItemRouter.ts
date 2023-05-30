@@ -2,6 +2,7 @@ import express from "express";
 import { prisma } from "../../prisma/client";
 const workItemRouter = express.Router();
 import { IO } from "../../types/socket";
+import { deleteFromTable } from "./deleteFromTable";
 
 workItemRouter.post("/blockWorkItem", async (req, res) => {
   const body = await req.body;
@@ -15,7 +16,7 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
 
   const activeDat = Number(findWorkItem?.owner?.game?.day);
   const userMoves = findWorkItem?.owner?.moves as number;
-  const gameKey = findWorkItem?.game_id;
+  const gameKey = findWorkItem?.game_id as string;
 
   const io: IO = req.app.get("socketio");
 
@@ -67,11 +68,19 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
       if (activeDat % 10 === 0) {
         const currentRound = findWorkItem.owner?.game?.round;
         if (currentRound) {
+          const round = currentRound + 1;
+          if (round === 3) {
+            deleteFromTable("Development", gameKey as string, 5);
+            deleteFromTable("Release", gameKey as string, 5);
+            deleteFromTable("Design", gameKey as string, 10);
+            deleteFromTable("Strategic Value", gameKey as string, 10);
+          }
+
           await prisma.game.update({
             where: { code: gameKey },
-            data: { round: currentRound + 1 },
+            data: { round },
           });
-          io.emit("newStage", { newStage: currentRound + 1 });
+          io.emit("newStage", { newStage: round });
         }
       }
 
@@ -201,11 +210,19 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
     if (activeDat % 10 === 0) {
       const currentRound = user?.game?.round;
       if (currentRound) {
+        const round = currentRound + 1;
+        if (round === 3) {
+          deleteFromTable("Development", gameKey as string, 5);
+          deleteFromTable("Release", gameKey as string, 5);
+          deleteFromTable("Design", gameKey as string, 10);
+          deleteFromTable("Strategic Value", gameKey as string, 10);
+        }
+
         await prisma.game.update({
           where: { code: gameKey },
-          data: { round: currentRound + 1 },
+          data: { round },
         });
-        io.emit("newStage", { newStage: currentRound + 1 });
+        io.emit("newStage", { newStage: round });
       }
     }
 
