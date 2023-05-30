@@ -80,10 +80,13 @@ gameRouter.post("/joinSimulation", async (req, res) => {
       where: { gameKey: key },
     });
 
+    const players = await prisma.user.findMany({ where: { gameKey: key } });
+
     return res.status(200).json({
       ...findUser[0],
       activeDay,
       howManyPlayers: howManyPlayers._count.id,
+      players,
     });
   } else {
     const table = ["Strategic Value", "Development", "Release", "Design"];
@@ -102,20 +105,27 @@ gameRouter.post("/joinSimulation", async (req, res) => {
     });
     await prisma.workItem.update({
       where: { id: workItemToMove?.id },
-      data: { stage: 2, ownerId: newUser.id },
+      data: { stage: 2, ownerId: newUser.id, start: 1 },
     });
 
+    // TODO: Optimise
     const howManyPlayers = await prisma.user.aggregate({
       _count: { id: true },
       where: { gameKey: key },
     });
 
-    io.emit("userJoined", { howManyPlayers: howManyPlayers._count.id });
+    const players = await prisma.user.findMany({ where: { gameKey: key } });
+
+    io.emit("userJoined", {
+      howManyPlayers: howManyPlayers._count.id,
+      players,
+    });
 
     return res.status(200).json({
       ...newUser,
       activeDay,
       howManyPlayers: howManyPlayers._count.id,
+      players,
     });
   }
 });

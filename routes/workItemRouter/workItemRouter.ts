@@ -22,8 +22,15 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
   if (Number(activeDat) === Number(userMoves)) {
     return res.status(200).json({ msg: "You have already made your move" });
   }
+  const currentRound = findWorkItem?.owner?.game?.round;
 
   if (findWorkItem && findWorkItem.stage !== 1 && findWorkItem.stage !== 4) {
+    if (currentRound === 1 && findWorkItem?.ownerId !== userId) {
+      return res
+        .status(200)
+        .json({ msg: "In this round you can only move yours tasks" });
+    }
+
     // User move + 1
     await prisma.user.update({
       where: { id: userId },
@@ -129,7 +136,16 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
   if (Number(activeDat) === Number(userMoves)) {
     return res.status(200).json({ msg: "You have already made your move" });
   }
+
+  const currentRound = findWorkItem?.owner?.game?.round;
+
   if (findWorkItem) {
+    if (currentRound === 1 && findWorkItem?.ownerId !== userId) {
+      return res
+        .status(200)
+        .json({ msg: "In this round you can only move yours tasks" });
+    }
+
     // User move + 1
     await prisma.user.update({
       where: { id: userId },
@@ -228,7 +244,6 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
 
 workItemRouter.post("/getWorkItems", async (req, res) => {
   const body = await req.body;
-  console.log(body);
   const gameCode = body.gameCode;
 
   const allWorkItems = await prisma.workItem.findMany({
