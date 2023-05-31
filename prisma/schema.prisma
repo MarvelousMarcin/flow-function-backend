@@ -21,6 +21,14 @@ model Game {
 
   round   Int     @default(1)
 
+  doneStra Int   @default(0)
+
+  doneDes Int   @default(0)
+
+  doneDev Int   @default(0)
+
+  doneRel Int   @default(0)
+
   users User[]
 }
 

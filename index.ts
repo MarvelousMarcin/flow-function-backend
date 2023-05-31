@@ -24,6 +24,12 @@ app.use(cors());
 app.use(gameRouter);
 app.use(workItemRouter);
 
+io.on("connection", (socket) => {
+  socket.on("userMoved", (arg) => {
+    console.log(arg); // world
+  });
+});
+
 server.listen(port, () => {
   console.log(`Listening on port ${port}`);
 });
