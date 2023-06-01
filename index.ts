@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import cors from "cors";
 import workItemRouter from "./routes/workItemRouter/workItemRouter";
-const port = 8000;
+const port = process.env.PORT;
 import gameRouter from "./routes/gameRouter/gameRouter";
 import { Server } from "socket.io";
 import http from "http";
