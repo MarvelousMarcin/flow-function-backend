@@ -93,29 +93,71 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
       }
 
       if (activeDat % 3 === 0) {
-        await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Strategic Value" },
+        const howManyStraDone = await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Strategic Value", game_id: gameKey },
           data: {
             stage: 1,
             table: "Design",
           },
         });
 
-        await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Design" },
+        await prisma.game.updateMany({
+          where: { code: gameKey },
+          data: {
+            doneStra:
+              Number(findWorkItem.owner?.game?.doneStra) +
+              howManyStraDone.count,
+          },
+        });
+
+        const howManyDesignDone = await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Design", game_id: gameKey },
           data: {
             stage: 1,
             table: "Development",
           },
         });
 
-        await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Development" },
+        await prisma.game.updateMany({
+          where: { code: gameKey },
+          data: {
+            doneDes:
+              Number(findWorkItem.owner?.game?.doneDes) +
+              howManyDesignDone.count,
+          },
+        });
+
+        const howManyDevelopmentDone = await prisma.workItem.updateMany({
+          where: { stage: 4, table: "Development", game_id: gameKey },
           data: {
             stage: 1,
             table: "Release",
           },
         });
+
+        await prisma.game.updateMany({
+          where: { code: gameKey },
+          data: {
+            doneDev:
+              Number(findWorkItem.owner?.game?.doneDev) +
+              howManyDevelopmentDone.count,
+          },
+        });
+
+        await prisma.game.updateMany({
+          where: { code: gameKey },
+          data: {
+            doneDev:
+              Number(findWorkItem.owner?.game?.doneDev) +
+              howManyDevelopmentDone.count,
+          },
+        });
+
+        const game = await prisma.game.findUnique({
+          where: { code: findWorkItem.owner?.gameKey as string },
+        });
+
+        io.emit("capacityUpdate", { ...game });
       }
 
       const workItems = await getWorkItems(gameKey as string);
@@ -123,10 +165,23 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
       io.emit("newDay", { newDay: activeDat + 1 });
       io.emit("rerenderWorkItems", { workItems });
 
+      const game = await prisma.game.findUnique({
+        where: { code: findWorkItem.owner?.gameKey as string },
+      });
+
+      io.emit("capacityUpdate", { ...game });
+
       return res.status(200).json({ nextDay: true });
     } else {
       const workItems = await getWorkItems(gameKey as string);
+
       io.emit("rerenderWorkItems", { workItems });
+
+      const game = await prisma.game.findUnique({
+        where: { code: findWorkItem.owner?.gameKey as string },
+      });
+
+      io.emit("capacityUpdate", { ...game });
 
       return res.status(200).json({ nextDay: false });
     }
@@ -201,6 +256,13 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
               end: activeDat,
             },
           });
+
+          await prisma.game.update({
+            where: { code: gameKey },
+            data: {
+              doneRel: Number(user?.game?.doneRel) + 1,
+            },
+          });
         } else {
           await prisma.workItem.update({
             where: { id: workItemId },
@@ -241,27 +303,48 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
     }
 
     if (activeDat % 3 === 0) {
-      await prisma.workItem.updateMany({
-        where: { stage: 4, table: "Strategic Value" },
+      const howManyStraDone = await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Strategic Value", game_id: gameKey },
         data: {
           stage: 1,
           table: "Design",
         },
       });
 
-      await prisma.workItem.updateMany({
-        where: { stage: 4, table: "Design" },
+      await prisma.game.update({
+        where: { code: gameKey },
+        data: {
+          doneStra: Number(user?.game?.doneStra) + howManyStraDone.count,
+        },
+      });
+
+      const howManyDesignDone = await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Design", game_id: gameKey },
         data: {
           stage: 1,
           table: "Development",
         },
       });
 
-      await prisma.workItem.updateMany({
-        where: { stage: 4, table: "Development" },
+      await prisma.game.update({
+        where: { code: gameKey },
+        data: {
+          doneDes: Number(user?.game?.doneDes) + howManyDesignDone.count,
+        },
+      });
+
+      const howManyDevelopmentDone = await prisma.workItem.updateMany({
+        where: { stage: 4, table: "Development", game_id: gameKey },
         data: {
           stage: 1,
           table: "Release",
+        },
+      });
+
+      await prisma.game.update({
+        where: { code: gameKey },
+        data: {
+          doneDev: Number(user?.game?.doneDev) + howManyDevelopmentDone.count,
         },
       });
     }
@@ -270,10 +353,21 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
     const workItems = await getWorkItems(gameKey as string);
     io.emit("rerenderWorkItems", { workItems });
 
+    const game = await prisma.game.findUnique({
+      where: { code: user?.gameKey as string },
+    });
+
+    io.emit("capacityUpdate", { ...game });
+
     return res.status(200).json({ nextDay: true });
   } else {
     const workItems = await getWorkItems(gameKey as string);
     io.emit("rerenderWorkItems", { workItems });
+    const game = await prisma.game.findUnique({
+      where: { code: user?.gameKey as string },
+    });
+
+    io.emit("capacityUpdate", { ...game });
 
     return res.status(200).json({ nextDay: false });
   }
