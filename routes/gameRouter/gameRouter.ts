@@ -62,6 +62,12 @@ gameRouter.post("/joinSimulation", async (req, res) => {
   const name = body.name;
   const key = body.gameKey;
 
+  const game = await prisma.game.findUnique({ where: { code: key } });
+
+  if (!game) {
+    return res.status(401).json({ msg: "Not game found with this key" });
+  }
+
   const findUser = await prisma.user.findMany({
     where: { gameKey: key, name },
   });
