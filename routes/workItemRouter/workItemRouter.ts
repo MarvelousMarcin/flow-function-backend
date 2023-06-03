@@ -92,72 +92,136 @@ workItemRouter.post("/blockWorkItem", async (req, res) => {
         }
       }
 
-      if (activeDat % 3 === 0) {
-        const howManyStraDone = await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Strategic Value", game_id: gameKey },
-          data: {
-            stage: 1,
-            table: "Design",
-          },
-        });
+      const round = findWorkItem.owner?.game?.round as number;
 
-        await prisma.game.updateMany({
-          where: { code: gameKey },
-          data: {
-            doneStra:
-              Number(findWorkItem.owner?.game?.doneStra) +
-              howManyStraDone.count,
-          },
-        });
+      if (activeDat % 3 === 0 || round >= 4) {
+        if (round >= 4) {
+          const howManyInBacklog = await prisma.workItem.aggregate({
+            _count: { id: true },
+            where: { game_id: gameKey, table: "Design", stage: 1 },
+          });
+          if (howManyInBacklog._count.id <= 3) {
+            const howManyStraDone = await prisma.workItem.updateMany({
+              where: { stage: 4, table: "Strategic Value", game_id: gameKey },
+              data: {
+                stage: 1,
+                table: "Design",
+              },
+            });
 
-        const howManyDesignDone = await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Design", game_id: gameKey },
-          data: {
-            stage: 1,
-            table: "Development",
-          },
-        });
+            await prisma.game.update({
+              where: { code: gameKey },
+              data: {
+                doneStra:
+                  Number(findWorkItem.owner?.game?.doneStra) +
+                  howManyStraDone.count,
+              },
+            });
+          }
+        } else {
+          const howManyStraDone = await prisma.workItem.updateMany({
+            where: { stage: 4, table: "Strategic Value", game_id: gameKey },
+            data: {
+              stage: 1,
+              table: "Design",
+            },
+          });
 
-        await prisma.game.updateMany({
-          where: { code: gameKey },
-          data: {
-            doneDes:
-              Number(findWorkItem.owner?.game?.doneDes) +
-              howManyDesignDone.count,
-          },
-        });
+          await prisma.game.update({
+            where: { code: gameKey },
+            data: {
+              doneStra:
+                Number(findWorkItem.owner?.game?.doneStra) +
+                howManyStraDone.count,
+            },
+          });
+        }
 
-        const howManyDevelopmentDone = await prisma.workItem.updateMany({
-          where: { stage: 4, table: "Development", game_id: gameKey },
-          data: {
-            stage: 1,
-            table: "Release",
-          },
-        });
+        if (round >= 4) {
+          const howManyInBacklog = await prisma.workItem.aggregate({
+            _count: { id: true },
+            where: { game_id: gameKey, table: "Development", stage: 1 },
+          });
 
-        await prisma.game.updateMany({
-          where: { code: gameKey },
-          data: {
-            doneDev:
-              Number(findWorkItem.owner?.game?.doneDev) +
-              howManyDevelopmentDone.count,
-          },
-        });
+          if (howManyInBacklog._count.id <= 3) {
+            const howManyDesignDone = await prisma.workItem.updateMany({
+              where: { stage: 4, table: "Design", game_id: gameKey },
+              data: {
+                stage: 1,
+                table: "Development",
+              },
+            });
 
-        await prisma.game.updateMany({
-          where: { code: gameKey },
-          data: {
-            doneDev:
-              Number(findWorkItem.owner?.game?.doneDev) +
-              howManyDevelopmentDone.count,
-          },
-        });
+            await prisma.game.update({
+              where: { code: gameKey },
+              data: {
+                doneDes:
+                  Number(findWorkItem.owner?.game?.doneDes) +
+                  howManyDesignDone.count,
+              },
+            });
+          }
+        } else {
+          const howManyDesignDone = await prisma.workItem.updateMany({
+            where: { stage: 4, table: "Design", game_id: gameKey },
+            data: {
+              stage: 1,
+              table: "Development",
+            },
+          });
 
-        const game = await prisma.game.findUnique({
-          where: { code: findWorkItem.owner?.gameKey as string },
-        });
+          await prisma.game.update({
+            where: { code: gameKey },
+            data: {
+              doneDes:
+                Number(findWorkItem.owner?.game?.doneDes) +
+                howManyDesignDone.count,
+            },
+          });
+        }
 
-        io.emit("capacityUpdate", { ...game });
+        if (round >= 4) {
+          const howManyInBacklog = await prisma.workItem.aggregate({
+            _count: { id: true },
+            where: { game_id: gameKey, table: "Release", stage: 1 },
+          });
+
+          if (howManyInBacklog._count.id <= 3) {
+            const howManyDevelopmentDone = await prisma.workItem.updateMany({
+              where: { stage: 4, table: "Development", game_id: gameKey },
+              data: {
+                stage: 1,
+                table: "Release",
+              },
+            });
+
+            await prisma.game.update({
+              where: { code: gameKey },
+              data: {
+                doneDev:
+                  Number(findWorkItem.owner?.game?.doneDev) +
+                  howManyDevelopmentDone.count,
+              },
+            });
+          }
+        } else {
+          const howManyDevelopmentDone = await prisma.workItem.updateMany({
+            where: { stage: 4, table: "Development", game_id: gameKey },
+            data: {
+              stage: 1,
+              table: "Release",
+            },
+          });
+
+          await prisma.game.update({
+            where: { code: gameKey },
+            data: {
+              doneDev:
+                Number(findWorkItem.owner?.game?.doneDev) +
+                howManyDevelopmentDone.count,
+            },
+          });
+        }
       }
 
       const workItems = await getWorkItems(gameKey as string);
