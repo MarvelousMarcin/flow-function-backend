@@ -3,6 +3,8 @@ import { prisma } from "../../prisma/client";
 const gameRouter = express.Router();
 const tables = ["Strategic Value", "Design", "Development", "Release"];
 import { IO } from "../../types/socket";
+import { getWorkItems } from "../workItemRouter/getWorkItems";
+
 function getRandomGameCode(): string {
   const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -121,6 +123,9 @@ gameRouter.post("/joinSimulation", async (req, res) => {
     });
 
     const players = await prisma.user.findMany({ where: { gameKey: key } });
+
+    const workItems = await getWorkItems(key as string);
+    io.emit("rerenderWorkItems", { workItems });
 
     io.emit("userJoined", {
       howManyPlayers: howManyPlayers._count.id,
