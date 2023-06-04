@@ -67,12 +67,19 @@ gameRouter.post("/joinSimulation", async (req, res) => {
   const game = await prisma.game.findUnique({ where: { code: key } });
 
   if (!game) {
-    return res.status(401).json({ msg: "Not game found with this key" });
+    return res.status(401).json({ msg: "No game with such key" });
   }
 
   const findUser = await prisma.user.findMany({
     where: { gameKey: key, name },
   });
+
+  console.log(game.day);
+  console.log(findUser);
+
+  if (game.day > 1 && findUser.length === 0) {
+    return res.status(401).json({ msg: "Game has already started" });
+  }
 
   const activeDay = await prisma.game.findUnique({ where: { code: key } });
 

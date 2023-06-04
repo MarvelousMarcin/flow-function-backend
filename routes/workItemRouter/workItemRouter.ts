@@ -496,17 +496,16 @@ workItemRouter.post("/moveWorkItem", async (req, res) => {
     });
 
     io.emit("capacityUpdate", { ...game });
-
     return res.status(200).json({ nextDay: true });
   } else {
     const workItems = await getWorkItems(gameKey as string);
+
     io.emit("rerenderWorkItems", { workItems });
     const game = await prisma.game.findUnique({
       where: { code: user?.gameKey as string },
     });
 
     io.emit("capacityUpdate", { ...game });
-
     return res.status(200).json({ nextDay: false });
   }
 });
